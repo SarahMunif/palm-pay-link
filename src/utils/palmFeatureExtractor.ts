@@ -21,7 +21,7 @@ interface EnrollmentData {
 
 class PalmFeatureExtractor {
   private model: any = null;
-  private readonly SIMILARITY_THRESHOLD = 0.85;
+  private readonly SIMILARITY_THRESHOLD = 0.65;
 
   async initialize() {
     if (!this.model) {
@@ -53,19 +53,60 @@ class PalmFeatureExtractor {
         canvas.width = 224;
         canvas.height = 224;
         
-        // Draw and enhance image
+        // Draw image
         ctx.drawImage(img, 0, 0, 224, 224);
         
-        // Apply basic contrast enhancement (simulating CLAHE)
+        // Advanced preprocessing for palm recognition
         const imageData = ctx.getImageData(0, 0, 224, 224);
         const data = imageData.data;
         
-        // Simple contrast enhancement
+        // Convert to grayscale and normalize
+        const grayData = new Uint8Array(224 * 224);
         for (let i = 0; i < data.length; i += 4) {
-          // Enhance contrast for each channel
-          data[i] = Math.min(255, Math.max(0, (data[i] - 128) * 1.2 + 128));     // R
-          data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * 1.2 + 128)); // G
-          data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * 1.2 + 128)); // B
+          const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+          grayData[i / 4] = gray;
+        }
+        
+        // Apply histogram equalization for better contrast
+        const histogram = new Array(256).fill(0);
+        for (let i = 0; i < grayData.length; i++) {
+          histogram[grayData[i]]++;
+        }
+        
+        // Calculate cumulative distribution
+        const cdf = new Array(256);
+        cdf[0] = histogram[0];
+        for (let i = 1; i < 256; i++) {
+          cdf[i] = cdf[i - 1] + histogram[i];
+        }
+        
+        // Normalize CDF
+        const totalPixels = grayData.length;
+        for (let i = 0; i < 256; i++) {
+          cdf[i] = Math.round((cdf[i] / totalPixels) * 255);
+        }
+        
+        // Apply equalization and enhance contrast
+        for (let i = 0; i < grayData.length; i++) {
+          const equalizedValue = cdf[grayData[i]];
+          // Enhanced contrast with sigmoid-like function
+          const enhanced = Math.round(255 / (1 + Math.exp(-0.05 * (equalizedValue - 128))));
+          grayData[i] = enhanced;
+        }
+        
+        // Apply Gaussian blur to reduce noise
+        const blurred = this.gaussianBlur(grayData, 224, 224, 1.0);
+        
+        // Edge enhancement using unsharp masking
+        const sharpened = this.unsharpMask(blurred, grayData, 224, 224, 0.5);
+        
+        // Convert back to RGB
+        for (let i = 0; i < sharpened.length; i++) {
+          const value = sharpened[i];
+          data[i * 4] = value;     // R
+          data[i * 4 + 1] = value; // G
+          data[i * 4 + 2] = value; // B
+          // Alpha channel remains unchanged
         }
         
         ctx.putImageData(imageData, 0, 0);
@@ -79,6 +120,80 @@ class PalmFeatureExtractor {
       img.onerror = reject;
       img.src = URL.createObjectURL(imageFile);
     });
+  }
+
+  private gaussianBlur(data: Uint8Array, width: number, height: number, sigma: number): Uint8Array {
+    const result = new Uint8Array(data.length);
+    const kernelSize = Math.ceil(sigma * 3) * 2 + 1;
+    const kernel = this.createGaussianKernel(kernelSize, sigma);
+    
+    // Horizontal pass
+    const temp = new Uint8Array(data.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let sum = 0;
+        let weightSum = 0;
+        
+        for (let k = 0; k < kernelSize; k++) {
+          const px = x + k - Math.floor(kernelSize / 2);
+          if (px >= 0 && px < width) {
+            sum += data[y * width + px] * kernel[k];
+            weightSum += kernel[k];
+          }
+        }
+        temp[y * width + x] = Math.round(sum / weightSum);
+      }
+    }
+    
+    // Vertical pass
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let sum = 0;
+        let weightSum = 0;
+        
+        for (let k = 0; k < kernelSize; k++) {
+          const py = y + k - Math.floor(kernelSize / 2);
+          if (py >= 0 && py < height) {
+            sum += temp[py * width + x] * kernel[k];
+            weightSum += kernel[k];
+          }
+        }
+        result[y * width + x] = Math.round(sum / weightSum);
+      }
+    }
+    
+    return result;
+  }
+
+  private createGaussianKernel(size: number, sigma: number): number[] {
+    const kernel = new Array(size);
+    const center = Math.floor(size / 2);
+    let sum = 0;
+    
+    for (let i = 0; i < size; i++) {
+      const x = i - center;
+      kernel[i] = Math.exp(-(x * x) / (2 * sigma * sigma));
+      sum += kernel[i];
+    }
+    
+    // Normalize
+    for (let i = 0; i < size; i++) {
+      kernel[i] /= sum;
+    }
+    
+    return kernel;
+  }
+
+  private unsharpMask(blurred: Uint8Array, original: Uint8Array, width: number, height: number, amount: number): Uint8Array {
+    const result = new Uint8Array(original.length);
+    
+    for (let i = 0; i < original.length; i++) {
+      const mask = original[i] - blurred[i];
+      const sharpened = original[i] + amount * mask;
+      result[i] = Math.max(0, Math.min(255, Math.round(sharpened)));
+    }
+    
+    return result;
   }
 
   calculateImageHash(imageFile: File): Promise<string> {
@@ -178,46 +293,175 @@ class PalmFeatureExtractor {
     // Create features from image statistics and patterns
     const features: number[] = [];
     
-    // Grid-based feature extraction (similar to deep learning approach)
-    const gridSize = 8;
-    const cellSize = canvas.width / gridSize;
+    // Convert to grayscale for better analysis
+    const grayData = new Uint8Array(canvas.width * canvas.height);
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      grayData[i / 4] = gray;
+    }
     
-    for (let y = 0; y < gridSize; y++) {
-      for (let x = 0; x < gridSize; x++) {
-        let rSum = 0, gSum = 0, bSum = 0;
-        let pixelCount = 0;
-        
-        // Calculate average color for each grid cell
-        for (let dy = 0; dy < cellSize; dy++) {
-          for (let dx = 0; dx < cellSize; dx++) {
-            const px = Math.floor(x * cellSize + dx);
-            const py = Math.floor(y * cellSize + dy);
-            
-            if (px < canvas.width && py < canvas.height) {
-              const idx = (py * canvas.width + px) * 4;
-              rSum += data[idx];
-              gSum += data[idx + 1];
-              bSum += data[idx + 2];
-              pixelCount++;
+    // Multi-scale grid features for different palm structures
+    const gridSizes = [4, 8, 16]; // Different scales to capture various palm features
+    
+    for (const gridSize of gridSizes) {
+      const cellSize = canvas.width / gridSize;
+      
+      for (let y = 0; y < gridSize; y++) {
+        for (let x = 0; x < gridSize; x++) {
+          let intensitySum = 0;
+          let varianceSum = 0;
+          let pixelCount = 0;
+          const cellPixels: number[] = [];
+          
+          // Collect pixels in this cell
+          for (let dy = 0; dy < cellSize; dy++) {
+            for (let dx = 0; dx < cellSize; dx++) {
+              const px = Math.floor(x * cellSize + dx);
+              const py = Math.floor(y * cellSize + dy);
+              
+              if (px < canvas.width && py < canvas.height) {
+                const grayValue = grayData[py * canvas.width + px];
+                cellPixels.push(grayValue);
+                intensitySum += grayValue;
+                pixelCount++;
+              }
             }
           }
-        }
-        
-        if (pixelCount > 0) {
-          features.push(rSum / pixelCount / 255);
-          features.push(gSum / pixelCount / 255);
-          features.push(bSum / pixelCount / 255);
+          
+          if (pixelCount > 0) {
+            // Mean intensity
+            const meanIntensity = intensitySum / pixelCount;
+            features.push(meanIntensity / 255);
+            
+            // Variance (texture information)
+            for (const pixel of cellPixels) {
+              varianceSum += Math.pow(pixel - meanIntensity, 2);
+            }
+            const variance = varianceSum / pixelCount;
+            features.push(Math.sqrt(variance) / 255);
+            
+            // Entropy (randomness measure - important for palm texture)
+            const histogram = new Array(256).fill(0);
+            for (const pixel of cellPixels) {
+              histogram[pixel]++;
+            }
+            let entropy = 0;
+            for (let i = 0; i < 256; i++) {
+              if (histogram[i] > 0) {
+                const probability = histogram[i] / pixelCount;
+                entropy -= probability * Math.log2(probability);
+              }
+            }
+            features.push(entropy / 8); // Normalize entropy
+          }
         }
       }
     }
     
-    // Add edge detection features
-    const edgeFeatures = this.calculateEdgeFeatures(imageData);
-    features.push(...edgeFeatures);
+    // Add directional edge features (palm lines have specific orientations)
+    const directionalEdges = this.calculateDirectionalEdges(grayData, canvas.width, canvas.height);
+    features.push(...directionalEdges);
     
-    // Normalize features
-    const norm = Math.sqrt(features.reduce((sum, val) => sum + val * val, 0));
-    return features.map(val => val / (norm || 1));
+    // Add texture features using Local Binary Patterns
+    const lbpFeatures = this.calculateLBPFeatures(grayData, canvas.width, canvas.height);
+    features.push(...lbpFeatures);
+    
+    // Normalize features using robust scaling
+    const robustFeatures = this.robustNormalization(features);
+    
+    return robustFeatures;
+  }
+
+  private calculateDirectionalEdges(grayData: Uint8Array, width: number, height: number): number[] {
+    const features: number[] = [];
+    
+    // Sobel operators for different directions
+    const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+    const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
+    const diagonal1 = [[-2, -1, 0], [-1, 0, 1], [0, 1, 2]];
+    const diagonal2 = [[0, 1, 2], [-1, 0, 1], [-2, -1, 0]];
+    
+    const operators = [sobelX, sobelY, diagonal1, diagonal2];
+    
+    for (const operator of operators) {
+      let edgeSum = 0;
+      let count = 0;
+      
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          let gradient = 0;
+          
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const pixel = grayData[(y + ky) * width + (x + kx)];
+              gradient += pixel * operator[ky + 1][kx + 1];
+            }
+          }
+          
+          edgeSum += Math.abs(gradient);
+          count++;
+        }
+      }
+      
+      features.push(edgeSum / count / 1020); // Normalize
+    }
+    
+    return features;
+  }
+
+  private calculateLBPFeatures(grayData: Uint8Array, width: number, height: number): number[] {
+    const lbpHistogram = new Array(256).fill(0);
+    
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const center = grayData[y * width + x];
+        let lbpValue = 0;
+        
+        // 8-connected neighbors
+        const neighbors = [
+          grayData[(y - 1) * width + (x - 1)], // Top-left
+          grayData[(y - 1) * width + x],       // Top
+          grayData[(y - 1) * width + (x + 1)], // Top-right
+          grayData[y * width + (x + 1)],       // Right
+          grayData[(y + 1) * width + (x + 1)], // Bottom-right
+          grayData[(y + 1) * width + x],       // Bottom
+          grayData[(y + 1) * width + (x - 1)], // Bottom-left
+          grayData[y * width + (x - 1)]        // Left
+        ];
+        
+        for (let i = 0; i < 8; i++) {
+          if (neighbors[i] >= center) {
+            lbpValue |= (1 << i);
+          }
+        }
+        
+        lbpHistogram[lbpValue]++;
+      }
+    }
+    
+    // Normalize histogram
+    const totalPixels = (width - 2) * (height - 2);
+    return lbpHistogram.map(count => count / totalPixels);
+  }
+
+  private robustNormalization(features: number[]): number[] {
+    if (features.length === 0) return features;
+    
+    // Calculate median and MAD (Median Absolute Deviation) for robust scaling
+    const sortedFeatures = [...features].sort((a, b) => a - b);
+    const median = sortedFeatures[Math.floor(sortedFeatures.length / 2)];
+    
+    const deviations = features.map(f => Math.abs(f - median));
+    const sortedDeviations = deviations.sort((a, b) => a - b);
+    const mad = sortedDeviations[Math.floor(sortedDeviations.length / 2)];
+    
+    // Robust scaling: (x - median) / MAD
+    const scalingFactor = mad > 0 ? mad : 1;
+    const scaledFeatures = features.map(f => (f - median) / scalingFactor);
+    
+    // Final L2 normalization
+    const norm = Math.sqrt(scaledFeatures.reduce((sum, val) => sum + val * val, 0));
+    return scaledFeatures.map(val => val / (norm || 1));
   }
 
   private calculateEdgeFeatures(imageData: ImageData): number[] {
