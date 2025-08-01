@@ -7,36 +7,36 @@
 @layer base {
   :root {
     /* Core Brand Colors */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 20 70% 94%;
+    --foreground: 0 0% 100%;
 
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 192 100% 10%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 192 100% 10%;
+    --popover-foreground: 0 0% 100%;
 
-    /* Primary Brand - Deep Blue to Purple */
-    --primary: 258 90% 66%;
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 258 90% 76%;
+    /* Primary Brand - Purple for buttons */
+    --primary: 252 54% 66%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 252 54% 76%;
 
-    /* Secondary - Elegant Purple */
-    --secondary: 270 70% 20%;
-    --secondary-foreground: 0 0% 98%;
+    /* Secondary - Container color */
+    --secondary: 192 100% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 5% 15%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 192 100% 15%;
+    --muted-foreground: 0 0% 80%;
 
-    --accent: 258 90% 66%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 147 76% 29%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5% 20%;
-    --input: 240 5% 15%;
-    --ring: 258 90% 66%;
+    --border: 147 76% 29%;
+    --input: 192 100% 10%;
+    --ring: 252 54% 66%;
 
     --radius: 0.75rem;
 
