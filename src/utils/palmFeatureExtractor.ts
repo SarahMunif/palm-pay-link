@@ -22,7 +22,7 @@ interface EnrollmentData {
 class PalmFeatureExtractor {
   private model: any = null;
   private isInitialized = false;
-  private readonly SIMILARITY_THRESHOLD = 0.75; // Increased for better accuracy
+  private readonly SIMILARITY_THRESHOLD = 0.60; // 60% threshold for natural palm variations
 
   async initialize() {
     if (this.isInitialized) return;
