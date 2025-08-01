@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import { palmFeatureExtractor } from '@/utils/palmFeatureExtractor';
 import { Badge } from '@/components/ui/badge';
 import { Upload, CreditCard, CheckCircle, XCircle, Hand, DollarSign, User } from 'lucide-react';
 
@@ -34,46 +35,56 @@ export const PalmPayment = ({ onBack }: PalmPaymentProps) => {
 
     setIsProcessing(true);
 
-    // Simulate processing time
-    setTimeout(() => {
-      // Get enrolled palm data from localStorage
-      const enrolledData = JSON.parse(localStorage.getItem('palmEnrollments') || '[]');
+    try {
+      toast({
+        title: "Verifying Palm...",
+        description: "Processing biometric authentication...",
+      });
+
+      // Use real AI palm verification
+      const verificationResult = await palmFeatureExtractor.verifyPalm(paymentImage);
       
-      // Simulate palm matching (in a real app, this would use ML models)
-      const matchFound = enrolledData.length > 0 && Math.random() > 0.3; // 70% success rate for demo
-      
-      if (matchFound) {
-        const userInfo = enrolledData[enrolledData.length - 1]; // Get latest enrollment
-        const discountAmount = parseFloat(userInfo.moneyAmount) || 0;
-        const originalAmount = 30;
-        const finalAmount = Math.max(0, originalAmount - discountAmount);
-        
+      if (verificationResult.isMatch && verificationResult.userInfo) {
         setPaymentResult({
-          amount: finalAmount,
+          amount: verificationResult.finalAmount,
           isSuccess: true,
-          userInfo,
-          similarity: 0.95 + Math.random() * 0.04, // 95-99% similarity
+          userInfo: verificationResult.userInfo,
+          similarity: verificationResult.similarity,
         });
 
         toast({
-          title: "Payment Authorized!",
-          description: `Payment of $${finalAmount.toFixed(2)} processed successfully`,
+          title: "Payment Authorized! ✋",
+          description: `Payment of $${verificationResult.finalAmount.toFixed(2)} processed successfully for ${verificationResult.userInfo.fullName}`,
         });
       } else {
         setPaymentResult({
           amount: 30,
           isSuccess: false,
+          similarity: verificationResult.similarity,
         });
 
         toast({
           title: "Authentication Failed",
-          description: "Palm not recognized. Please try again or enroll your palm first.",
+          description: `Palm not recognized (${(verificationResult.similarity * 100).toFixed(1)}% match). Please try again or enroll your palm first.`,
           variant: "destructive",
         });
       }
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      
+      setPaymentResult({
+        amount: 30,
+        isSuccess: false,
+      });
 
+      toast({
+        title: "Processing Error",
+        description: "Failed to process payment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsProcessing(false);
-    }, 3000);
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {

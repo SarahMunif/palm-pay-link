@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import { palmFeatureExtractor } from '@/utils/palmFeatureExtractor';
 import { User, CreditCard, DollarSign, Upload, Check } from 'lucide-react';
 
 interface EnrollmentData {
@@ -30,6 +31,7 @@ export const PalmEnrollmentForm = ({ onComplete }: PalmEnrollmentFormProps) => {
     palmImage: null,
   });
   const [dragActive, setDragActive] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const validateStep1 = () => {
     const { nationalId, phoneNumber, fullName, cardName, moneyAmount } = formData;
@@ -82,27 +84,54 @@ export const PalmEnrollmentForm = ({ onComplete }: PalmEnrollmentFormProps) => {
     return true;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (step === 1 && validateStep1()) {
       setStep(2);
     } else if (step === 2 && formData.palmImage) {
-      // Save enrollment data to localStorage for later use
-      const enrollmentData = {
-        ...formData,
-        enrollmentId: Date.now().toString(),
-        palmImageData: formData.palmImage ? URL.createObjectURL(formData.palmImage) : null,
-      };
+      setIsProcessing(true);
       
-      const existingData = JSON.parse(localStorage.getItem('palmEnrollments') || '[]');
-      existingData.push(enrollmentData);
-      localStorage.setItem('palmEnrollments', JSON.stringify(existingData));
-      
-      toast({
-        title: "Enrollment Successful!",
-        description: "Your palm has been registered successfully.",
-      });
-      
-      onComplete(formData);
+      try {
+        toast({
+          title: "Processing Palm...",
+          description: "Extracting biometric features, please wait...",
+        });
+
+        // Extract palm features using AI
+        const palmFeatures = await palmFeatureExtractor.extractFeatures(formData.palmImage);
+        
+        // Save enrollment data with palm features
+        const enrollmentData = {
+          enrollmentId: Date.now().toString(),
+          nationalId: formData.nationalId,
+          phoneNumber: formData.phoneNumber,
+          fullName: formData.fullName,
+          cardName: formData.cardName,
+          moneyAmount: formData.moneyAmount,
+          palmFeatures: palmFeatures,
+          palmImageData: URL.createObjectURL(formData.palmImage),
+        };
+        
+        const existingData = JSON.parse(localStorage.getItem('palmEnrollments') || '[]');
+        existingData.push(enrollmentData);
+        localStorage.setItem('palmEnrollments', JSON.stringify(existingData));
+        
+        toast({
+          title: "Enrollment Successful! ✋",
+          description: `Palm biometrics registered for ${formData.fullName}`,
+        });
+        
+        onComplete(formData);
+        
+      } catch (error) {
+        console.error('Enrollment error:', error);
+        toast({
+          title: "Enrollment Failed",
+          description: "Failed to process palm biometrics. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsProcessing(false);
+      }
     } else if (step === 2) {
       toast({
         title: "Palm Image Required",
@@ -307,8 +336,9 @@ export const PalmEnrollmentForm = ({ onComplete }: PalmEnrollmentFormProps) => {
               onClick={handleNextStep}
               className="flex-1"
               size="lg"
+              disabled={isProcessing || (step === 2 && !formData.palmImage)}
             >
-              {step === 1 ? 'Next' : 'Complete Enrollment'}
+              {isProcessing ? 'Processing...' : (step === 1 ? 'Next' : 'Complete Enrollment')}
             </Button>
           </div>
         </CardContent>
