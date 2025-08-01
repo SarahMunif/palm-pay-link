@@ -2,41 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Palm Payment System Design System */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Core Brand Colors */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary Brand - Deep Blue to Purple */
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 258 90% 76%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Elegant Purple */
+    --secondary: 270 70% 20%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 258 90% 66%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 240 5% 20%;
+    --input: 240 5% 15%;
+    --ring: 258 90% 66%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Palm System Specific Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(258 90% 66%), hsl(270 70% 40%));
+    --gradient-secondary: linear-gradient(180deg, hsl(240 10% 8%), hsl(240 10% 3.9%));
+    --gradient-accent: linear-gradient(45deg, hsl(258 90% 66%), hsl(295 85% 65%));
+
+    /* Shadows */
+    --shadow-elegant: 0 10px 30px -10px hsl(258 90% 20% / 0.3);
+    --shadow-glow: 0 0 40px hsl(258 90% 66% / 0.15);
+    --shadow-card: 0 4px 20px hsl(240 10% 3.9% / 0.4);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +123,73 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    background: var(--gradient-secondary);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-xl border;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-card);
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+
+  .glow-effect {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+
+  .palm-scanner {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .palm-scanner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(130, 87, 229, 0.3), transparent);
+    animation: scan 2s infinite;
+  }
+
+  @keyframes scan {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .palm-upload-area {
+    @apply glass-card p-8 rounded-2xl transition-smooth;
+    border: 2px dashed hsl(var(--border));
+  }
+
+  .palm-upload-area:hover {
+    border-color: hsl(var(--primary));
+    background: rgba(130, 87, 229, 0.05);
+  }
+
+  .palm-upload-area.active {
+    border-color: hsl(var(--primary));
+    background: rgba(130, 87, 229, 0.1);
+    box-shadow: var(--shadow-glow);
   }
 }
