@@ -531,9 +531,18 @@ class PalmFeatureExtractor {
   }> {
     try {
       console.log('Starting palm verification...');
+      console.log('Model initialized:', !!this.model);
+      
+      // Ensure model is initialized
+      if (!this.model) {
+        console.log('Model not initialized, initializing now...');
+        await this.initialize();
+      }
       
       // Extract features from payment image
       const paymentFeatures = await this.extractFeatures(paymentImage);
+      console.log('Payment features extracted, length:', paymentFeatures.features.length);
+      console.log('Feature sample (first 5):', paymentFeatures.features.slice(0, 5));
       
       // Get all enrolled palms from localStorage
       const enrolledData: EnrollmentData[] = JSON.parse(localStorage.getItem('palmEnrollments') || '[]');
@@ -557,6 +566,9 @@ class PalmFeatureExtractor {
           continue;
         }
 
+        console.log(`Enrolled features length: ${enrollment.palmFeatures.features.length}`);
+        console.log(`Enrolled feature sample (first 5):`, enrollment.palmFeatures.features.slice(0, 5));
+
         const similarity = this.calculateCosineSimilarity(
           paymentFeatures.features,
           enrollment.palmFeatures.features
@@ -570,6 +582,7 @@ class PalmFeatureExtractor {
         }
       }
 
+      console.log(`Best similarity: ${bestSimilarity}, Threshold: ${this.SIMILARITY_THRESHOLD}`);
       const isMatch = bestSimilarity >= this.SIMILARITY_THRESHOLD;
       const originalAmount = 30;
       let finalAmount = originalAmount;
