@@ -6,39 +6,37 @@
 
 @layer base {
   :root {
-    /* Core Brand Colors - Light peach background for main areas */
-    --background: 20 70% 94%;  /* FBE7E0 - Light peach for main background */
-    --foreground: 0 0% 100%;   /* White text */
+    /* Core Brand Colors */
+    --background: 20 70% 94%;
+    --foreground: 192 100% 10%;
 
-    /* Containers - Dark blue for cards and containers */
-    --card: 192 100% 10%;      /* 002333 - Dark blue containers */
-    --card-foreground: 0 0% 100%;  /* White text on containers */
+    --card: 20 70% 94%;
+    --card-foreground:  192 100% 10%;
 
-    --popover: 192 100% 10%;   /* 002333 - Dark blue containers */
-    --popover-foreground: 0 0% 100%;  /* White text */
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Primary Brand - Purple for buttons */
-    --primary: 252 54% 66%;    /* 877CDA - Purple buttons */
-    --primary-foreground: 0 0% 100%;  /* White text on buttons */
-    --primary-glow: 252 54% 76%;
+    /* Primary Brand - Deep Blue to Purple */
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 258 90% 76%;
 
-    /* Secondary - Container color */
-    --secondary: 192 100% 10%; /* 002333 - Dark blue containers */
-    --secondary-foreground: 0 0% 100%;  /* White text */
+    /* Secondary - Elegant Purple */
+    --secondary: 270 70% 20%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 192 100% 15%;     /* Slightly lighter than containers */
-    --muted-foreground: 0 0% 80%;  /* Light gray text */
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 65%;
 
-    /* Accent - Green for details */
-    --accent: 147 76% 29%;     /* 117C4D - Green accent */
-    --accent-foreground: 0 0% 100%;  /* White text */
+    --accent: 258 90% 66%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 147 76% 29%;     /* 117C4D - Green borders */
-    --input: 192 100% 10%;     /* 002333 - Dark blue input backgrounds */
-    --ring: 252 54% 66%;       /* Purple focus rings */
+    --border:  192 100% 10;
+    --input: #000000;
+    --ring: 258 90% 66%;
 
     --radius: 0.75rem;
 
@@ -125,15 +123,16 @@
 
   body {
     @apply bg-background text-foreground;
-    background: hsl(var(--background));  /* Use solid light peach background */
+    background: var(--gradient-secondary);
     min-height: 100vh;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-card text-card-foreground border;
-    border-color: hsl(var(--border));
+    @apply backdrop-blur-xl border;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
     box-shadow: var(--shadow-card);
   }
 
