@@ -228,9 +228,19 @@ class PalmFeatureExtractor {
           const result = await this.model(blob);
           
           if (result && result.length > 0) {
-            // Extract meaningful features from model output
-            features = result.slice(0, 200).map((item: any) => item.score || 0);
-            console.log('✅ AI features extracted:', features.length);
+            // Extract meaningful features from model output and pad to consistent length
+            const modelFeatures = result.slice(0, 200).map((item: any) => item.score || 0);
+            
+            // Ensure consistent feature vector length of 512
+            const targetLength = 512;
+            features = new Array(targetLength).fill(0);
+            
+            // Copy available features
+            for (let i = 0; i < Math.min(modelFeatures.length, targetLength); i++) {
+              features[i] = modelFeatures[i];
+            }
+            
+            console.log('✅ AI features extracted and normalized to length:', features.length);
           } else {
             throw new Error('No valid AI features returned');
           }
@@ -267,8 +277,8 @@ class PalmFeatureExtractor {
     console.log('🔧 Creating advanced palm features...');
     const features: number[] = [];
 
-    // Multi-scale texture analysis
-    const scales = [4, 8, 16, 32];
+    // Multi-scale texture analysis - limited scales for consistency
+    const scales = [8, 16];
     for (const scale of scales) {
       features.push(...this.extractTextureFeatures(imageData, scale));
     }
@@ -276,16 +286,24 @@ class PalmFeatureExtractor {
     // Ridge pattern analysis (critical for palm recognition)
     features.push(...this.extractRidgePatterns(imageData));
 
-    // Geometric features
+    // Geometric features - limited for consistency
     features.push(...this.extractGeometricFeatures(imageData));
-
-    // Local Binary Patterns at multiple scales
-    features.push(...this.extractMultiScaleLBP(imageData));
 
     // Directional features
     features.push(...this.extractDirectionalFeatures(imageData));
 
-    console.log(`✅ Generated ${features.length} advanced palm features`);
+    // Ensure consistent feature vector length
+    const targetLength = 512;
+    if (features.length > targetLength) {
+      // Truncate to target length
+      features.splice(targetLength);
+    } else if (features.length < targetLength) {
+      // Pad with zeros to reach target length
+      const padding = targetLength - features.length;
+      features.push(...new Array(padding).fill(0));
+    }
+
+    console.log(`✅ Generated ${features.length} advanced palm features (consistent length)`);
     return features;
   }
 
@@ -421,9 +439,9 @@ class PalmFeatureExtractor {
       }
     }
 
-    // Sort by strength and take top edges
+    // Sort by strength and take top edges - limited for consistency
     edges.sort((a, b) => b.strength - a.strength);
-    const topEdges = edges.slice(0, Math.min(50, edges.length));
+    const topEdges = edges.slice(0, Math.min(20, edges.length)); // Reduced from 50 to 20
 
     if (topEdges.length > 0) {
       // Calculate geometric features from top edges
@@ -431,9 +449,9 @@ class PalmFeatureExtractor {
       const centerY = height / 2;
       
       let avgDistance = 0;
-      let angleVariance = 0;
       
-      for (const edge of topEdges) {
+      for (let i = 0; i < topEdges.length; i++) {
+        const edge = topEdges[i];
         const distance = Math.sqrt((edge.x - centerX)**2 + (edge.y - centerY)**2);
         const angle = Math.atan2(edge.y - centerY, edge.x - centerX);
         
@@ -444,6 +462,9 @@ class PalmFeatureExtractor {
           Math.sin(angle), // Angle sine
           edge.strength / 255 // Normalized strength
         );
+        
+        // Limit to prevent excessive features
+        if (features.length >= 80) break;
       }
       
       features.push(avgDistance / (topEdges.length * Math.sqrt(width*width + height*height)));
@@ -458,47 +479,43 @@ class PalmFeatureExtractor {
     const height = imageData.height;
     const features: number[] = [];
 
-    // LBP at different radii
-    const radii = [1, 2, 3];
-    const points = [8, 8, 16];
+    // LBP at single radius for consistency - removed to reduce feature count
+    const radius = 2;
+    const numPoints = 8;
+    const histogram = new Array(256).fill(0);
+    let totalPixels = 0;
 
-    for (let r = 0; r < radii.length; r++) {
-      const radius = radii[r];
-      const numPoints = points[r];
-      const histogram = new Array(256).fill(0);
-      let totalPixels = 0;
-
-      for (let y = radius; y < height - radius; y++) {
-        for (let x = radius; x < width - radius; x++) {
-          const centerIdx = (y * width + x) * 4;
-          const centerValue = data[centerIdx];
+    for (let y = radius; y < height - radius; y += 2) { // Skip every other pixel for speed
+      for (let x = radius; x < width - radius; x += 2) {
+        const centerIdx = (y * width + x) * 4;
+        const centerValue = data[centerIdx];
+        
+        let lbpValue = 0;
+        
+        for (let p = 0; p < numPoints; p++) {
+          const angle = (2 * Math.PI * p) / numPoints;
+          const neighborX = Math.round(x + radius * Math.cos(angle));
+          const neighborY = Math.round(y + radius * Math.sin(angle));
           
-          let lbpValue = 0;
-          
-          for (let p = 0; p < numPoints; p++) {
-            const angle = (2 * Math.PI * p) / numPoints;
-            const neighborX = Math.round(x + radius * Math.cos(angle));
-            const neighborY = Math.round(y + radius * Math.sin(angle));
+          if (neighborX >= 0 && neighborX < width && neighborY >= 0 && neighborY < height) {
+            const neighborIdx = (neighborY * width + neighborX) * 4;
+            const neighborValue = data[neighborIdx];
             
-            if (neighborX >= 0 && neighborX < width && neighborY >= 0 && neighborY < height) {
-              const neighborIdx = (neighborY * width + neighborX) * 4;
-              const neighborValue = data[neighborIdx];
-              
-              if (neighborValue >= centerValue) {
-                lbpValue |= (1 << p);
-              }
+            if (neighborValue >= centerValue) {
+              lbpValue |= (1 << p);
             }
           }
-          
-          histogram[lbpValue]++;
-          totalPixels++;
         }
+        
+        histogram[lbpValue]++;
+        totalPixels++;
       }
+    }
 
-      // Normalize histogram
-      for (let i = 0; i < 256; i++) {
-        features.push(histogram[i] / totalPixels);
-      }
+    // Normalize histogram - only take most significant bins to reduce feature count
+    const significantBins = 64; // Reduced from 256
+    for (let i = 0; i < significantBins; i++) {
+      features.push(histogram[i] / totalPixels);
     }
 
     return features;
